@@ -1,43 +1,19 @@
 /**
- * World / submarine state for Phase 3b.
+ * World / submarine state.
  *
  * Single source of truth: `tickGame()` mutates this each frame based on inputs
  * and physics, `render()` reads it. Nothing else holds gameplay state.
+ *
+ * All tunable constants live in config.ts. This file only re-exports the ones
+ * that other modules need to reference without importing config directly.
  */
 
-// ── World geometry ────────────────────────────────────────────────────────────
-
-/** World extent in abstract units. The sub starts roughly in the middle. */
-export const WORLD_W = 1024
-export const WORLD_H = 1024
-
-/** Submarine maximum speed in knots. Maps 1:1 to world units per second. */
-export const MAX_SPEED = 12
-
-/** Sonar detection range in world units. Mines outside this radius don't appear. */
-export const SONAR_RANGE = 160
-
-/** Half-angle of the periscope forward viewing cone, in degrees. */
-export const PERISCOPE_FOV_DEG = 50
-
-/** Maximum range a mine can be displayed in the periscope, in world units. */
-export const PERISCOPE_RANGE = 220
-
-/** 2D collision radius (must overlap horizontally in world units). */
-export const MINE_COLLISION_RADIUS = 10
-
-/** Vertical collision tolerance — the sub must be within ±this many metres
- * of the mine's depth to actually touch it. Forces the player to match
- * depth, not just sail over the mine's surface position. */
-export const MINE_COLLISION_DEPTH = 5
-
-/** Maximum |mine.depth − sub.depth| visible in the periscope, in metres.
- * A mine at exactly this depth difference is drawn at the very top or
- * bottom of the periscope view; beyond this it's out of frame vertically. */
-export const PERISCOPE_DEPTH_RANGE = 100
-
-/** Depth at which diesel intake/exhaust floods (auto-shutdown threshold). */
-export const DIESEL_SAFE_DEPTH = 5
+export {
+  WORLD_W, WORLD_H, MAX_SPEED,
+  SONAR_RANGE, PERISCOPE_FOV_DEG, PERISCOPE_RANGE, PERISCOPE_DEPTH_RANGE,
+  MINE_COLLISION_RADIUS, MINE_COLLISION_DEPTH, DIESEL_SAFE_DEPTH,
+} from './config.ts'
+import { WORLD_W, WORLD_H } from './config.ts'
 
 // ── Mine layout ───────────────────────────────────────────────────────────────
 

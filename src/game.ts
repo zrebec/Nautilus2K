@@ -2,48 +2,21 @@ import { isHeld } from 'zx-kit'
 import {
   type GameState, type Mine,
   WORLD_W, WORLD_H, MAX_SPEED,
-  MINE_COLLISION_RADIUS, MINE_COLLISION_DEPTH, MINES,
-  DIESEL_SAFE_DEPTH,
+  MINES,
   dist,
 } from './state.ts'
 import {
   playEngineStart, playEngineStop, playMineHit, playDieselFlood,
 } from './audio.ts'
-
-// ── Control rates ────────────────────────────────────────────────────────────
-
-/** Rudder swing rate while ←/→ is held (degrees of rudder per second). */
-const RUDDER_RATE_DEG_PER_SEC = 25
-/** Rate at which the rudder self-centres when no input is held. */
-const RUDDER_RETURN_DEG_PER_SEC = 10
-/** Hard rudder limit. Real subs are typically ±35°. */
-const MAX_RUDDER_ANGLE = 35
-/** How sharply the sub turns: heading delta per second = rudder × speed × this. */
-const TURN_PER_KNOT_PER_DEG = 0.05
-
-/** Speed catch-up rate (closing fraction per second). */
-const SPEED_CLOSE_PER_SEC = 0.5
-/** Throttle change rate while ↑/↓ is held (knots / sec). */
-const THROTTLE_RATE_PER_SEC = 4
-
-/** Ballast change rate while A/D is held (fraction per second). */
-const BALLAST_RATE_PER_SEC = 0.08
-
-/** Depth-change rate per unit of net buoyancy at full speed (m/sec). */
-const DEPTH_RATE_PER_SEC = 8
-
-// ── Resource rates ──────────────────────────────────────────────────────────
-
-const O2_DRAIN_PER_SEC                = 1 / 600
-const BATTERY_BASE_DRAIN_PER_SEC      = 1 / 900
-const BATTERY_THROTTLE_DRAIN_PER_SEC  = 1 / 240
-/** Battery charge rate while DIESEL is running on the surface (fraction / sec). */
-const BATTERY_CHARGE_PER_SEC          = 1 / 200
-
-// ── Collision / damage ─────────────────────────────────────────────────────
-
-const MINE_HIT_DAMAGE = 0.2
-const DAMAGE_FLASH_DURATION_MS = 600
+import {
+  RUDDER_RATE_DEG_PER_SEC, RUDDER_RETURN_DEG_PER_SEC, MAX_RUDDER_ANGLE,
+  TURN_PER_KNOT_PER_DEG, SPEED_CLOSE_PER_SEC, THROTTLE_RATE_PER_SEC,
+  BALLAST_RATE_PER_SEC, DEPTH_RATE_PER_SEC, MIN_SPEED_FOR_DEPTH, MAX_DEPTH_M,
+  O2_DRAIN_PER_SEC, BATTERY_BASE_DRAIN_PER_SEC,
+  BATTERY_THROTTLE_DRAIN_PER_SEC, BATTERY_CHARGE_PER_SEC,
+  MINE_COLLISION_RADIUS, MINE_COLLISION_DEPTH, DIESEL_SAFE_DEPTH,
+  MINE_HIT_DAMAGE, DAMAGE_FLASH_DURATION_MS,
+} from './config.ts'
 
 // ── Edge-detection state for one-shot keys ─────────────────────────────────
 
@@ -176,12 +149,12 @@ function updateDepth(state: GameState, dt: number): void {
   // No engine power → no plane control → no depth change.
   // This matches the real-world rule: you can't dive without forward motion
   // because the dive planes need water flowing across them to work.
-  if (state.engineMode === 'OFF' || state.speed < 0.5) return
+  if (state.engineMode === 'OFF' || state.speed < MIN_SPEED_FOR_DEPTH) return
 
   const buoyancy   = state.ballastAirPct - state.ballastWaterPct       // -1..+1
   const speedFrac  = state.speed / MAX_SPEED                            // 0..1
   state.depth -= buoyancy * DEPTH_RATE_PER_SEC * speedFrac * dt
-  state.depth = Math.max(0, Math.min(999, state.depth))
+  state.depth = Math.max(0, Math.min(MAX_DEPTH_M, state.depth))
 }
 
 // ── Resource drain ──────────────────────────────────────────────────────────
