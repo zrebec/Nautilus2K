@@ -15,7 +15,7 @@ import {
 } from './state.ts'
 import {
   MINE_AHEAD_BEARING_DEG, PERISCOPE_SURFACE_THRESHOLD_M, MAX_RUDDER_ANGLE,
-  RPM_DIAL_MAX,
+  RPM_DIAL_MAX, BALLAST_BAR_SEGMENTS, RESOURCE_BAR_SEGMENTS,
   ENGINE_MODE_COLORS,
   SONAR_CONTACT_COLOR, SONAR_GRID_COLOR, SONAR_PAPER,
   BALLAST_COLOR, BALLAST_PAPER,
@@ -29,6 +29,7 @@ import {
   SECT_SONAR_COLOR, SECT_BALLAST_COLOR, SECT_MOTOR_COLOR, SECT_STATUS_COLOR,
   DEPTH_READOUT_COLOR, SPEED_READOUT_COLOR,
 } from './config.ts'
+import { L } from './lang.ts'
 
 // ── Derived data (computed each frame from state + world) ───────────────────
 
@@ -68,14 +69,10 @@ function renderStatusLine(ctx: CanvasRenderingContext2D, state: GameState): void
   // operator's most-important "watch out!" indicator should reflect.
   const ahead = nearbyMines(state, PERISCOPE_RANGE).find(c => Math.abs(c.relBearing) <= MINE_AHEAD_BEARING_DEG)
   if (ahead) {
-    const txt = `MINE AHEAD ${Math.round(ahead.distance)}M`
-    drawText(ctx, txt, 0, STATUS_Y, ENGINE_MODE_COLORS.OFF, C.BLACK)
+    drawText(ctx, L.STR_MINE_AHEAD(Math.round(ahead.distance)), 0, STATUS_Y, ENGINE_MODE_COLORS.OFF, C.BLACK)
   }
 
-  const modeLbl =
-    state.engineMode === 'OFF'    ? 'ENGINE OFF' :
-    state.engineMode === 'DIESEL' ? 'PWR:DIESEL' :
-                                    'PWR:ELEC'
+  const modeLbl    = L.ENGINE_LABELS[state.engineMode]
   const modeColour = ENGINE_MODE_COLORS[state.engineMode]
   drawText(ctx, modeLbl, (COLS - modeLbl.length) * CELL, STATUS_Y, modeColour, C.BLACK)
 }
@@ -172,10 +169,9 @@ function renderPeriscopeLabels(ctx: CanvasRenderingContext2D, state: GameState):
   // submerged blue and the sea half; sky cells need the same treatment so
   // labels read consistently. Using BLUE everywhere is a small color-clash
   // compromise that keeps the labels readable in both modes.
-  drawText(ctx, 'OBJ:GAIA', 2, PERISCOPE_Y + 2, PERISCOPE_LABEL_INK, PERISCOPE_LABEL_PAPER)
+  drawText(ctx, L.STR_OBJECTIVE, 2, PERISCOPE_Y + 2, PERISCOPE_LABEL_INK, PERISCOPE_LABEL_PAPER)
 
-  const contactCount = nearbyMines(state, SONAR_RANGE).length
-  const contactLbl = `CONTACTS:${contactCount}`
+  const contactLbl = L.STR_CONTACTS(nearbyMines(state, SONAR_RANGE).length)
   drawText(ctx, contactLbl,
     CANVAS_W - contactLbl.length * CELL - 2,
     PERISCOPE_Y + 2,
@@ -184,16 +180,16 @@ function renderPeriscopeLabels(ctx: CanvasRenderingContext2D, state: GameState):
 
   let bearingLbl: string
   if (state.depth < PERISCOPE_SURFACE_THRESHOLD_M) {
-    bearingLbl = 'BRG:---'
+    bearingLbl = L.STR_BRG_NONE
   } else {
     const nearest = nearbyMines(state, PERISCOPE_RANGE)[0]
     bearingLbl = nearest
-      ? `BRG:${String(Math.round((nearest.relBearing + 360) % 360)).padStart(3, '0')}`
-      : 'BRG:---'
+      ? L.STR_BRG(String(Math.round((nearest.relBearing + 360) % 360)).padStart(3, '0'))
+      : L.STR_BRG_NONE
   }
   drawText(ctx, bearingLbl, 2, PERISCOPE_Y + PERISCOPE_H - 10, COMPASS_COLOR, PERISCOPE_LABEL_PAPER)
 
-  const magLbl = 'MAG:2X'
+  const magLbl = L.STR_MAG
   drawText(ctx, magLbl,
     CANVAS_W - magLbl.length * CELL - 2,
     PERISCOPE_Y + PERISCOPE_H - 10,
@@ -204,10 +200,10 @@ function renderPeriscopeLabels(ctx: CanvasRenderingContext2D, state: GameState):
 // ── Dashboard section labels ────────────────────────────────────────────────
 
 function renderSectionLabels(ctx: CanvasRenderingContext2D): void {
-  drawText(ctx, 'SONAR',   2,         SECT_LABEL_Y, SECT_SONAR_COLOR,   C.BLACK)
-  drawText(ctx, 'BALLAST', 8  * CELL, SECT_LABEL_Y, SECT_BALLAST_COLOR, C.BLACK)
-  drawText(ctx, 'MOTOR',   16 * CELL, SECT_LABEL_Y, SECT_MOTOR_COLOR,   C.BLACK)
-  drawText(ctx, 'STATUS',  25 * CELL, SECT_LABEL_Y, SECT_STATUS_COLOR,  C.BLACK)
+  drawText(ctx, L.STR_SECT_SONAR,   2,         SECT_LABEL_Y, SECT_SONAR_COLOR,   C.BLACK)
+  drawText(ctx, L.STR_SECT_BALLAST, 8  * CELL, SECT_LABEL_Y, SECT_BALLAST_COLOR, C.BLACK)
+  drawText(ctx, L.STR_SECT_MOTOR,   16 * CELL, SECT_LABEL_Y, SECT_MOTOR_COLOR,   C.BLACK)
+  drawText(ctx, L.STR_SECT_STATUS,  25 * CELL, SECT_LABEL_Y, SECT_STATUS_COLOR,  C.BLACK)
 }
 
 // ── Dashboard widgets ───────────────────────────────────────────────────────
@@ -241,38 +237,37 @@ function renderSonar(ctx: CanvasRenderingContext2D, state: GameState): void {
   }
 
   // Range readout
-  drawText(ctx, `R:${SONAR_RANGE}M`, x, y + h + 1, C.WHITE, C.BLACK)
+  drawText(ctx, L.STR_SONAR_RANGE(SONAR_RANGE), x, y + h + 1, C.WHITE, C.BLACK)
 }
 
 function renderBallast(ctx: CanvasRenderingContext2D, state: GameState): void {
   const baseX = 8 * CELL
   const y = DASHBOARD_Y
 
-  const SEGS = 8
-  const airFilled   = Math.round(state.ballastAirPct   * SEGS)
-  const waterFilled = Math.round(state.ballastWaterPct * SEGS)
+  const airFilled   = Math.round(state.ballastAirPct   * BALLAST_BAR_SEGMENTS)
+  const waterFilled = Math.round(state.ballastWaterPct * BALLAST_BAR_SEGMENTS)
 
   drawSegmentedBar(ctx, {
-    x: baseX + 4, y, segments: SEGS,
-    value: airFilled, max: SEGS,
+    x: baseX + 4, y, segments: BALLAST_BAR_SEGMENTS,
+    value: airFilled, max: BALLAST_BAR_SEGMENTS,
     segmentWidth: 14, segmentHeight: 4, gap: 1,
     orientation: 'vertical',
     color: BALLAST_COLOR,
     paper: BALLAST_PAPER,
   })
   drawSegmentedBar(ctx, {
-    x: baseX + 30, y, segments: SEGS,
-    value: waterFilled, max: SEGS,
+    x: baseX + 30, y, segments: BALLAST_BAR_SEGMENTS,
+    value: waterFilled, max: BALLAST_BAR_SEGMENTS,
     segmentWidth: 14, segmentHeight: 4, gap: 1,
     orientation: 'vertical',
     color: BALLAST_COLOR,
     paper: BALLAST_PAPER,
   })
 
-  drawText(ctx, 'AIR', baseX + 0,  y + 42, BALLAST_COLOR, C.BLACK)
-  drawText(ctx, 'H2O', baseX + 26, y + 42, BALLAST_COLOR, C.BLACK)
-  drawText(ctx, `${Math.round(state.ballastAirPct   * 100)}%`, baseX + 0,  y + 50, C.WHITE, C.BLACK)
-  drawText(ctx, `${Math.round(state.ballastWaterPct * 100)}%`, baseX + 26, y + 50, C.WHITE, C.BLACK)
+  drawText(ctx, L.STR_BALLAST_AIR,   baseX + 0,  y + 42, BALLAST_COLOR, C.BLACK)
+  drawText(ctx, L.STR_BALLAST_WATER,  baseX + 26, y + 42, BALLAST_COLOR, C.BLACK)
+  drawText(ctx, L.STR_PCT(Math.round(state.ballastAirPct   * 100)), baseX + 0,  y + 50, C.WHITE, C.BLACK)
+  drawText(ctx, L.STR_PCT(Math.round(state.ballastWaterPct * 100)), baseX + 26, y + 50, C.WHITE, C.BLACK)
 }
 
 function renderMotor(ctx: CanvasRenderingContext2D, state: GameState): void {
@@ -314,45 +309,46 @@ function renderStatusBars(ctx: CanvasRenderingContext2D, state: GameState): void
   const baseX = 24 * CELL
   const y = DASHBOARD_Y
 
-  drawText(ctx, 'OXY', baseX, y, C.WHITE, C.BLACK)
+  drawText(ctx, L.STR_OXY, baseX, y, C.WHITE, C.BLACK)
   drawSegmentedBar(ctx, {
-    x: baseX + 32, y, segments: 4, value: Math.round(state.oxygenPct * 4), max: 4,
+    x: baseX + 32, y,
+    segments: RESOURCE_BAR_SEGMENTS, value: Math.round(state.oxygenPct  * RESOURCE_BAR_SEGMENTS), max: RESOURCE_BAR_SEGMENTS,
     segmentWidth: 6, segmentHeight: 6, gap: 1,
     colors: [...RESOURCE_COLORS],
     paper: C.BLACK,
   })
 
-  drawText(ctx, 'BAT', baseX, y + 10, C.WHITE, C.BLACK)
+  drawText(ctx, L.STR_BAT, baseX, y + 10, C.WHITE, C.BLACK)
   drawSegmentedBar(ctx, {
-    x: baseX + 32, y: y + 10, segments: 4, value: Math.round(state.batteryPct * 4), max: 4,
+    x: baseX + 32, y: y + 10,
+    segments: RESOURCE_BAR_SEGMENTS, value: Math.round(state.batteryPct * RESOURCE_BAR_SEGMENTS), max: RESOURCE_BAR_SEGMENTS,
     segmentWidth: 6, segmentHeight: 6, gap: 1,
     colors: [...RESOURCE_COLORS],
     paper: C.BLACK,
   })
 
-  drawText(ctx, 'DMG', baseX, y + 20, C.WHITE, C.BLACK)
+  drawText(ctx, L.STR_DMG, baseX, y + 20, C.WHITE, C.BLACK)
   drawSegmentedBar(ctx, {
-    x: baseX + 32, y: y + 20, segments: 4, value: Math.round(state.damagePct * 4), max: 4,
+    x: baseX + 32, y: y + 20,
+    segments: RESOURCE_BAR_SEGMENTS, value: Math.round(state.damagePct  * RESOURCE_BAR_SEGMENTS), max: RESOURCE_BAR_SEGMENTS,
     segmentWidth: 6, segmentHeight: 6, gap: 1,
     color: DAMAGE_COLOR,
     paper: C.BLACK,
   })
 
   // Live depth + speed readouts — driven by physics, not by the player.
-  drawText(ctx, `D:${Math.round(state.depth)}M`,  baseX, y + 32, DEPTH_READOUT_COLOR, C.BLACK)
-  drawText(ctx, `V:${Math.round(state.speed)}KN`, baseX, y + 40, SPEED_READOUT_COLOR, C.BLACK)
+  drawText(ctx, L.STR_DEPTH(Math.round(state.depth)), baseX, y + 32, DEPTH_READOUT_COLOR, C.BLACK)
+  drawText(ctx, L.STR_SPEED(Math.round(state.speed)), baseX, y + 40, SPEED_READOUT_COLOR, C.BLACK)
 }
 
 // ── Bottom ticker ───────────────────────────────────────────────────────────
-
-const _COMPASS_DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const
 
 function _compassWidthPx(heading: number): number {
   const c = Math.round((((heading % 360) + 360) % 360) / 45) % 8
   const idxs = [(c + 6) % 8, (c + 7) % 8, c, (c + 1) % 8, (c + 2) % 8]
   let cells = 0
   for (let i = 0; i < 5; i++) {
-    const label = _COMPASS_DIRS[idxs[i]]
+    const label = L.COMPASS_DIRS[idxs[i]]
     const shown = (i === 1 || i === 3) ? `[${label}]` : label
     cells += shown.length + 1
   }
@@ -378,9 +374,7 @@ function renderBottomTicker(ctx: CanvasRenderingContext2D, state: GameState): vo
   // Right edge: mine progress + lives. minesFound advances in Phase 3c when
   // disarming arrives; for 3b it stays at 0 — the counter still shows "out of
   // total in the world" which is informative.
-  const mc = `M:${state.minesFound}/${MINES.filter(m => !m.disarmed).length}`
-  const lv = `L:${state.lives}`
-  const right = `${mc} ${lv}`
+  const right = `${L.STR_MINES(state.minesFound, MINES.filter(m => !m.disarmed).length)} ${L.STR_LIVES(state.lives)}`
   drawText(ctx, right, (COLS - right.length) * CELL, BOTTOM_Y, C.B_WHITE, C.BLACK)
 }
 

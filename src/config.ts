@@ -12,6 +12,24 @@
  */
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// LOCALISATION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Active language code. Picked up by lang.ts via zx-kit's `pickLocale`.
+ *
+ * - `null` / `'en'` / unknown code → loads default `strings.ts` (English)
+ * - `'sk'` → loads `strings.sk.ts` (Slovak)
+ *
+ * Case-insensitive: `'SK'` works the same as `'sk'`.
+ *
+ * To add a new translation: create `strings.<code>.ts`, register it
+ * in `lang.ts`, then set this code to test. HMR swaps the text live —
+ * useful for checking whether translations fit the fixed 256×192 layout.
+ */
+export const LANGUAGE_CODE: string | null = null
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // WORLD GEOMETRY
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -287,6 +305,27 @@ export const MINE_HIT_DAMAGE = 0.2
  * Current (600): ~0.6 seconds. Clear without being obnoxious.
  */
 export const DAMAGE_FLASH_DURATION_MS = 600
+
+/**
+ * Number of visual segments in the ballast tank bars (AIR and WATER columns).
+ * Significance: LOW — visual granularity of the ballast readout.
+ *
+ * Lower (4): Coarser bar — each segment = 25 % of the tank. Less precision.
+ * Higher (16): Very fine bar. More "analog gauge" feel. May be visually noisy.
+ * Current (8): Each segment = 12.5 %. Fine enough to see small ballast changes.
+ */
+export const BALLAST_BAR_SEGMENTS = 8
+
+/**
+ * Number of visual segments in the OXY / BAT / DMG resource bars.
+ * Significance: LOW — visual granularity of the three status bars.
+ *
+ * Lower (2): Crude on/off indicator — either "full" or "half" or "empty".
+ * Higher (8): Fine readout. Player can see 12 % battery remaining.
+ *             Note: with 3 colour thresholds, segment count should be ≥ 3.
+ * Current (4): Each segment = 25 %. Simple, fast to read at a glance.
+ */
+export const RESOURCE_BAR_SEGMENTS = 4
 
 /**
  * Screen shake intensity in pixels, applied randomly ±this value on mine hit.
