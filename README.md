@@ -14,11 +14,22 @@ Still hardcoded for Phase 3b: power source is always `ELEC`, no disarming mechan
 
 | Key | Action |
 |-----|--------|
+| `S`        | Start / stop the engine — throttle does nothing while the engine is off |
 | `←` / `→`  | Rotate heading (30°/sec while held) |
 | `↑` / `↓`  | Throttle up / down (target speed 0–12 knots) |
-| `W` / `S`  | Blow / flood ballast (depth control) |
+| `A`        | Ascend (blow ballast — pump air in, push water out) |
+| `D`        | Dive (flood ballast — pull water in, vent air out) |
 
-Speed smoothly chases throttle — the engine isn't instantaneous. Heading rolls at a constant rate so precise navigation takes a moment. Ballast at 50/50 is neutral buoyancy; air-heavy ascends, water-heavy descends.
+You start **at the surface, engine off, ballast full of air**. Press `S` to crank the engine, then `↑` to set a throttle. Hold `D` for several seconds to flood the ballast tanks — the sub will start sinking once it gets water-heavy. Hold `A` to surface.
+
+Speed smoothly chases throttle (the engine isn't instantaneous). Ballast fills slowly enough that you can actually feel the depth change. The periscope shows sky-and-sea above 5 m and an underwater reticle once you're properly submerged.
+
+## Audio
+
+Click anywhere or press any key once to unlock the AudioContext (browsers require a user gesture). After that:
+- Engine drone on AY channel A — pitch and volume scale with current speed
+- "Cranking" and "wind-down" jingles when you toggle the engine
+- Quick descending thud when the hull touches a mine
 
 ## Development
 
@@ -34,11 +45,12 @@ Requires Node 22+.
 
 ```
 src/
-├── main.ts         — canvas setup, init input, RAF loop with dt
+├── main.ts         — canvas setup, init input + audio, RAF loop with dt
 ├── constants.ts    — SCALE/CELL re-exports, layout Y-coordinates
 ├── state.ts        — GameState + world (mines, ranges), initial state, math helpers
 ├── game.ts         — tickGame(dt): reads inputs, applies physics, checks collisions
-└── render.ts       — pure rendering from state, derives sonar/periscope contacts inline
+├── audio.ts        — engine drone (AY), engine start/stop jingles, mine-hit SFX
+└── render.ts       — pure rendering from state, surface vs submerged periscope modes
 ```
 
 The layout fits the 256×192 native Spectrum resolution exactly:

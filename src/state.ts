@@ -88,6 +88,9 @@ export interface GameState {
 
   // ── Status / mission counters ────────────────────────────────────────
   power: 'DIESEL' | 'ELEC' | 'NUKE'
+  /** Whether the propulsion engine is running. Throttle has no effect on speed
+   * while the engine is off; speed naturally decays to 0 from drag. */
+  engineOn: boolean
   /** Mines marked / disarmed so far (Phase 3c gameplay). */
   minesFound: number
   /** Remaining lives. */
@@ -98,7 +101,7 @@ export interface GameState {
   damageFlashMs: number
 }
 
-/** Build a fresh state with the submarine in the middle of the world, idle. */
+/** Build a fresh state — sub starts AT THE SURFACE, engine off, full resources. */
 export function createInitialState(): GameState {
   return {
     x: WORLD_W / 2,
@@ -106,16 +109,17 @@ export function createInitialState(): GameState {
     heading: 0,
     speed: 0,
     throttle: 0,
-    depth: 50,
+    depth: 0,                 // at the surface
 
-    ballastAirPct: 0.5,
-    ballastWaterPct: 0.5,
+    ballastAirPct: 1.0,       // full air = max buoyancy = floats at the surface
+    ballastWaterPct: 0.0,
 
     oxygenPct: 1.0,
     batteryPct: 1.0,
     damagePct: 0.0,
 
     power: 'ELEC',
+    engineOn: false,          // player must press S to start
     minesFound: 0,
     lives: 3,
 

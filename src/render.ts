@@ -55,11 +55,19 @@ function renderStatusLine(ctx: CanvasRenderingContext2D, state: GameState): void
     drawText(ctx, txt, 0, STATUS_Y, C.B_RED, C.BLACK)
   }
 
-  const pwr = `PWR:${state.power}`
-  drawText(ctx, pwr, (COLS - pwr.length) * CELL, STATUS_Y, C.B_GREEN, C.BLACK)
+  // Power source label. When the engine is off we make this loud and red so
+  // the player notices the sub isn't going to move no matter how much they
+  // mash the throttle — the cause of confusion is obvious at a glance.
+  const pwr = state.engineOn ? `PWR:${state.power}` : 'ENGINE OFF'
+  const ink = state.engineOn ? C.B_GREEN : C.B_RED
+  drawText(ctx, pwr, (COLS - pwr.length) * CELL, STATUS_Y, ink, C.BLACK)
 }
 
 // ── Periscope view ──────────────────────────────────────────────────────────
+
+/** Depth below which the sub is considered submerged enough to switch the
+ *  periscope view from "above water" to underwater reticle mode. */
+const SURFACE_DEPTH_THRESHOLD_M = 5
 
 function renderPeriscope(ctx: CanvasRenderingContext2D, state: GameState): void {
   drawFrame(ctx, {
@@ -67,6 +75,37 @@ function renderPeriscope(ctx: CanvasRenderingContext2D, state: GameState): void 
     color: C.CYAN,
   })
 
+  // Branch on depth: surface view shows sky + sea horizon, submerged view
+  // shows the underwater reticle with crosshair and contact blips.
+  if (state.depth < SURFACE_DEPTH_THRESHOLD_M) {
+    renderPeriscopeSurface(ctx)
+  } else {
+    renderPeriscopeSubmerged(ctx, state)
+  }
+
+  // Corner HUD labels — drawn on top of either mode.
+  renderPeriscopeLabels(ctx, state)
+}
+
+function renderPeriscopeSurface(ctx: CanvasRenderingContext2D): void {
+  const innerY = PERISCOPE_Y + 1
+  const innerH = PERISCOPE_H - 2
+  const horizonY = Math.floor(PERISCOPE_Y + PERISCOPE_H / 2)
+
+  // Sky (upper half) — bright cyan, like a clear daylight sky on Spectrum.
+  ctx.fillStyle = C.B_CYAN
+  ctx.fillRect(1, innerY, CANVAS_W - 2, horizonY - innerY)
+
+  // Sea (lower half) — deep blue, matching the underwater mode for continuity.
+  ctx.fillStyle = C.BLUE
+  ctx.fillRect(1, horizonY, CANVAS_W - 2, innerY + innerH - horizonY)
+
+  // Horizon line — single bright pixel row to anchor the eye.
+  ctx.fillStyle = C.B_WHITE
+  ctx.fillRect(1, horizonY, CANVAS_W - 2, 1)
+}
+
+function renderPeriscopeSubmerged(ctx: CanvasRenderingContext2D, state: GameState): void {
   ctx.fillStyle = C.BLUE
   ctx.fillRect(1, PERISCOPE_Y + 1, CANVAS_W - 2, PERISCOPE_H - 2)
 
@@ -87,7 +126,6 @@ function renderPeriscope(ctx: CanvasRenderingContext2D, state: GameState): void 
     if (tx < 4 || tx > CANVAS_W - 4) continue
     ctx.fillRect(tx, cy - 1, 1, 3)
   }
-  // Depth ticks on the vertical crosshair
   for (let i = -2; i <= 2; i++) {
     if (i === 0) continue
     const ty = cy + i * 16
@@ -95,29 +133,27 @@ function renderPeriscope(ctx: CanvasRenderingContext2D, state: GameState): void 
     ctx.fillRect(cx - 1, ty, 3, 1)
   }
 
-  // ── Project mines onto the forward viewing arc ─────────────────────────
-  // A mine within ±PERISCOPE_FOV_DEG of the sub's heading is "visible".
-  // Horizontal position in the view comes from relative bearing (left/right
-  // of nose), vertical position from distance (closer = lower in the frame).
+  // Project mines onto the forward viewing arc (only visible underwater).
   const fwd = nearbyMines(state, PERISCOPE_RANGE)
                 .filter(c => Math.abs(c.relBearing) <= PERISCOPE_FOV_DEG)
-
   ctx.fillStyle = C.B_RED
   const halfWidth  = (CANVAS_W - 8) / 2
   const halfHeight = (PERISCOPE_H - 24) / 2
   for (const c of fwd) {
-    // Horizontal: -FOV° → -halfWidth, +FOV° → +halfWidth
     const xOff = (c.relBearing / PERISCOPE_FOV_DEG) * halfWidth
-    // Vertical: distance 0 → bottom of view, max range → top
     const yOff = halfHeight - (c.distance / PERISCOPE_RANGE) * halfHeight
     const mx = Math.round(cx + xOff)
     const my = Math.round(cy + yOff)
-    // Size shrinks with distance (closer = bigger)
     const size = Math.max(2, Math.round(6 * (1 - c.distance / PERISCOPE_RANGE)))
     ctx.fillRect(mx - Math.floor(size / 2), my - Math.floor(size / 2), size, size)
   }
+}
 
-  // ── Corner HUD labels (tactical info, no duplicates with dashboard) ────
+function renderPeriscopeLabels(ctx: CanvasRenderingContext2D, state: GameState): void {
+  // Pick paper that contrasts with whatever's behind: BLUE works for both
+  // submerged blue and the sea half; sky cells need the same treatment so
+  // labels read consistently. Using BLUE everywhere is a small color-clash
+  // compromise that keeps the labels readable in both modes.
   drawText(ctx, 'OBJ:GAIA', 2, PERISCOPE_Y + 2, C.B_WHITE, C.BLUE)
 
   const contactCount = nearbyMines(state, SONAR_RANGE).length
@@ -128,11 +164,16 @@ function renderPeriscope(ctx: CanvasRenderingContext2D, state: GameState): void 
     C.B_WHITE, C.BLUE,
   )
 
-  // Bearing to the nearest contact (or "---" if none)
-  const nearest = nearbyMines(state, PERISCOPE_RANGE)[0]
-  const bearingLbl = nearest
-    ? `BRG:${String(Math.round((nearest.relBearing + 360) % 360)).padStart(3, '0')}`
-    : 'BRG:---'
+  // At surface, BRG is undefined (no underwater target). Show "---".
+  let bearingLbl: string
+  if (state.depth < SURFACE_DEPTH_THRESHOLD_M) {
+    bearingLbl = 'BRG:---'
+  } else {
+    const nearest = nearbyMines(state, PERISCOPE_RANGE)[0]
+    bearingLbl = nearest
+      ? `BRG:${String(Math.round((nearest.relBearing + 360) % 360)).padStart(3, '0')}`
+      : 'BRG:---'
+  }
   drawText(ctx, bearingLbl, 2, PERISCOPE_Y + PERISCOPE_H - 10, C.WHITE, C.BLUE)
 
   const magLbl = 'MAG:2X'
