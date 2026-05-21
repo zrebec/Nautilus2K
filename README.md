@@ -6,9 +6,19 @@ Built on [zx-kit](https://github.com/zrebec/zx-kit) — the same authentic 256×
 
 ## Status
 
-**Phase 2 — layout** (current). Dashboard is drawn, widgets read from a hardcoded state snapshot. No gameplay yet — the screen always shows the same readings.
+**Phase 3b — gameplay** (current). The submarine moves, the controls work, ten mines exist in the world, sonar tracks contacts in range, the periscope projects what's in front of you, resources drain.
 
-Coming next: **Phase 3 — gameplay.** Ballast affects depth, motor draws battery, contacts move on the periscope, the Gaia Stone exists somewhere.
+Still hardcoded for Phase 3b: power source is always `ELEC`, no disarming mechanism, no win or lose condition, the Gaia Stone is a label without a location. **Phase 3c** will add disarming (`F` key over a mine), win condition (find the Gaia Stone), lose conditions (0 oxygen, 0 lives, hull failure), and a game-over screen.
+
+## Controls
+
+| Key | Action |
+|-----|--------|
+| `←` / `→`  | Rotate heading (30°/sec while held) |
+| `↑` / `↓`  | Throttle up / down (target speed 0–12 knots) |
+| `W` / `S`  | Blow / flood ballast (depth control) |
+
+Speed smoothly chases throttle — the engine isn't instantaneous. Heading rolls at a constant rate so precise navigation takes a moment. Ballast at 50/50 is neutral buoyancy; air-heavy ascends, water-heavy descends.
 
 ## Development
 
@@ -24,10 +34,11 @@ Requires Node 22+.
 
 ```
 src/
-├── main.ts         — canvas setup + RAF loop
+├── main.ts         — canvas setup, init input, RAF loop with dt
 ├── constants.ts    — SCALE/CELL re-exports, layout Y-coordinates
-├── state.ts        — SubmarineState type + DEMO_STATE for Phase 2
-└── render.ts       — all rendering: title, periscope, dashboard, ticker
+├── state.ts        — GameState + world (mines, ranges), initial state, math helpers
+├── game.ts         — tickGame(dt): reads inputs, applies physics, checks collisions
+└── render.ts       — pure rendering from state, derives sonar/periscope contacts inline
 ```
 
 The layout fits the 256×192 native Spectrum resolution exactly:

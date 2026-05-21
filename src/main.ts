@@ -1,16 +1,27 @@
-import { setupCanvas, curveDisplay } from 'zx-kit'
+import { setupCanvas, curveDisplay, initInput } from 'zx-kit'
 import { CANVAS_W, CANVAS_H, pickFittingScale } from './constants.ts'
-import { DEMO_STATE } from './state.ts'
+import { createInitialState } from './state.ts'
+import { tickGame } from './game.ts'
 import { render } from './render.ts'
 
 const canvas = document.getElementById('game') as HTMLCanvasElement
 const ctx = setupCanvas(canvas, pickFittingScale(), CANVAS_W, CANVAS_H)
 curveDisplay(canvas, 0.7)
 
-// Fáza 2: hardcoded state. The render loop just keeps repainting it so the
-// canvas stays alive (and so future state animation drops in without changes).
-function loop(): void {
-  render(ctx, DEMO_STATE)
+initInput()
+
+const state = createInitialState()
+
+let last = performance.now()
+
+function loop(now: number): void {
+  const dt = Math.min(now - last, 100)  // cap dt at 100ms to survive tab-switch lag
+  last = now
+
+  tickGame(state, dt)
+  render(ctx, state)
+
   requestAnimationFrame(loop)
 }
+
 requestAnimationFrame(loop)
