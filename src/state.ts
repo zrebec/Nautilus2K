@@ -23,8 +23,21 @@ export const PERISCOPE_FOV_DEG = 50
 /** Maximum range a mine can be displayed in the periscope, in world units. */
 export const PERISCOPE_RANGE = 220
 
-/** Collision distance for damage-on-touch (world units). */
+/** 2D collision radius (must overlap horizontally in world units). */
 export const MINE_COLLISION_RADIUS = 10
+
+/** Vertical collision tolerance — the sub must be within ±this many metres
+ * of the mine's depth to actually touch it. Forces the player to match
+ * depth, not just sail over the mine's surface position. */
+export const MINE_COLLISION_DEPTH = 5
+
+/** Maximum |mine.depth − sub.depth| visible in the periscope, in metres.
+ * A mine at exactly this depth difference is drawn at the very top or
+ * bottom of the periscope view; beyond this it's out of frame vertically. */
+export const PERISCOPE_DEPTH_RANGE = 100
+
+/** Depth at which diesel intake/exhaust floods (auto-shutdown threshold). */
+export const DIESEL_SAFE_DEPTH = 5
 
 // ── Mine layout ───────────────────────────────────────────────────────────────
 
@@ -33,26 +46,31 @@ export interface Mine {
   readonly x: number
   /** World y (y=0 is north / top of world) */
   readonly y: number
+  /** Mine depth in metres. The sub must match this depth (±MINE_COLLISION_DEPTH)
+   * to actually touch the mine — sailing across its surface position isn't
+   * enough if you're too shallow or too deep. */
+  readonly depth: number
   /** Disarming gameplay arrives in Phase 3c. For 3b mines are permanent. */
   disarmed: boolean
 }
 
 /**
- * Hand-placed mine layout for Phase 3b. Ten mines spread across the world,
- * none inside the sub's start zone (a 200-unit radius around centre) so the
- * player has breathing room before the first contact.
+ * Hand-placed mine layout. Ten mines spread across the world at varied depths
+ * (20–120 m) so the player has to manage ballast as well as 2D navigation.
+ * None inside the start zone — a quick straight dash gets you nowhere
+ * dangerous; you have to deliberately seek contacts out.
  */
 export const MINES: Mine[] = [
-  { x: 220, y: 180, disarmed: false },
-  { x: 720, y: 260, disarmed: false },
-  { x: 820, y: 540, disarmed: false },
-  { x: 680, y: 820, disarmed: false },
-  { x: 320, y: 780, disarmed: false },
-  { x: 160, y: 560, disarmed: false },
-  { x: 480, y: 120, disarmed: false },
-  { x: 540, y: 880, disarmed: false },
-  { x: 900, y: 760, disarmed: false },
-  { x: 100, y: 320, disarmed: false },
+  { x: 220, y: 180, depth:  30, disarmed: false },
+  { x: 720, y: 260, depth:  80, disarmed: false },
+  { x: 820, y: 540, depth:  50, disarmed: false },
+  { x: 680, y: 820, depth: 110, disarmed: false },
+  { x: 320, y: 780, depth:  40, disarmed: false },
+  { x: 160, y: 560, depth:  90, disarmed: false },
+  { x: 480, y: 120, depth:  60, disarmed: false },
+  { x: 540, y: 880, depth: 120, disarmed: false },
+  { x: 900, y: 760, depth:  25, disarmed: false },
+  { x: 100, y: 320, depth: 100, disarmed: false },
 ]
 
 // ── Submarine state ───────────────────────────────────────────────────────────
@@ -65,11 +83,16 @@ export interface GameState {
   y: number
   /** Heading in degrees `0..360`. `0`/`360` = north (up). */
   heading: number
+  /** Current rudder deflection in degrees, `-35..+35` (port negative,
+   * starboard positive). Set by the ←/→ keys, self-centres slowly when
+   * released. Turning rate of the sub = `rudderAngle × speed × factor`,
+   * so a zero-speed sub doesn't turn no matter how the rudder is set. */
+  rudderAngle: number
   /** Current speed in knots. Smoothly interpolates toward `throttle`. */
   speed: number
   /** Player-requested speed in knots (`0..MAX_SPEED`). Throttle the engine. */
   throttle: number
-  /** Current depth in metres. Driven by net buoyancy from ballast. */
+  /** Current depth in metres. Driven by net buoyancy × current speed. */
   depth: number
 
   // ── Ballast (controls depth) ─────────────────────────────────────────
@@ -86,11 +109,16 @@ export interface GameState {
   /** Hull damage taken `0..1` (1 = destroyed). Goes up when colliding with mines. */
   damagePct: number
 
-  // ── Status / mission counters ────────────────────────────────────────
-  power: 'DIESEL' | 'ELEC' | 'NUKE'
-  /** Whether the propulsion engine is running. Throttle has no effect on speed
-   * while the engine is off; speed naturally decays to 0 from drag. */
-  engineOn: boolean
+  // ── Engine + mission counters ────────────────────────────────────────
+  /** Active propulsion mode:
+   * - `'OFF'`   — no engine, no throttle effect, ballast doesn't change depth
+   *               (no forward motion = no plane control)
+   * - `'DIESEL'`— surface-only combustion engine; CHARGES battery, auto-shuts
+   *               down if you go deeper than `DIESEL_SAFE_DEPTH` (intake floods)
+   * - `'ELEC'`  — battery-driven motor; works at any depth, drains battery
+   *
+   * S key cycles `OFF → DIESEL → ELEC → OFF`. */
+  engineMode: 'OFF' | 'DIESEL' | 'ELEC'
   /** Mines marked / disarmed so far (Phase 3c gameplay). */
   minesFound: number
   /** Remaining lives. */
@@ -107,6 +135,7 @@ export function createInitialState(): GameState {
     x: WORLD_W / 2,
     y: WORLD_H / 2,
     heading: 0,
+    rudderAngle: 0,
     speed: 0,
     throttle: 0,
     depth: 0,                 // at the surface
@@ -118,8 +147,7 @@ export function createInitialState(): GameState {
     batteryPct: 1.0,
     damagePct: 0.0,
 
-    power: 'ELEC',
-    engineOn: false,          // player must press S to start
+    engineMode: 'OFF',        // player presses S to cycle modes
     minesFound: 0,
     lives: 3,
 

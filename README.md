@@ -14,22 +14,48 @@ Still hardcoded for Phase 3b: power source is always `ELEC`, no disarming mechan
 
 | Key | Action |
 |-----|--------|
-| `S`        | Start / stop the engine — throttle does nothing while the engine is off |
-| `←` / `→`  | Rotate heading (30°/sec while held) |
+| `S`        | Cycle engine mode (see below) |
+| `←` / `→`  | Swing rudder port / starboard (auto-centres when released) |
 | `↑` / `↓`  | Throttle up / down (target speed 0–12 knots) |
 | `A`        | Ascend (blow ballast — pump air in, push water out) |
 | `D`        | Dive (flood ballast — pull water in, vent air out) |
 
-You start **at the surface, engine off, ballast full of air**. Press `S` to crank the engine, then `↑` to set a throttle. Hold `D` for several seconds to flood the ballast tanks — the sub will start sinking once it gets water-heavy. Hold `A` to surface.
+## Engine modes
 
-Speed smoothly chases throttle (the engine isn't instantaneous). Ballast fills slowly enough that you can actually feel the depth change. The periscope shows sky-and-sea above 5 m and an underwater reticle once you're properly submerged.
+A real diesel-electric submarine carries two propulsion systems. The ZX-Nautilus models the basics of both:
+
+| Mode | Where it works | Battery | What it sounds like |
+|------|----------------|---------|---------------------|
+| **OFF** | Anywhere | No change | Silent |
+| **DIESEL** | Only at depth ≤ 5 m (auto-floods deeper) | **Charges** (the whole reason to surface) | Low, throaty rumble + sub-octave |
+| **ELEC** | Any depth | Drains | High, clean whine |
+
+`S` cycles `OFF → DIESEL → ELEC → OFF` at the surface. Underwater, `DIESEL` is skipped automatically (it'd auto-shut-off on the next frame anyway). The typical procedure:
+
+1. Press `S` once on the surface → **DIESEL** drives you to a dive location and charges the battery.
+2. Press `S` again → **ELEC** (prepare for dive — diesels can't run underwater).
+3. Throttle up with `↑`, then hold `D` to flood ballast.
+4. Sub descends. Periscope flips to submerged-reticle mode at 5 m.
+5. To return: hold `A` to blow ballast, surface, press `S` to get back to DIESEL.
+
+## Movement physics
+
+- **Speed catches throttle smoothly** — engine inertia, not instant
+- **Depth needs forward motion** — at zero speed the dive planes have no water flow to bite into. Ballast is set but nothing happens until you have RPMs
+- **Rudder controls heading** — holding `←`/`→` swings the rudder, releasing lets it self-centre. Turn rate = rudder angle × speed × factor, so a stopped sub doesn't turn
+- The periscope shows sky-and-sea above 5 m and an underwater reticle once submerged
 
 ## Audio
 
 Click anywhere or press any key once to unlock the AudioContext (browsers require a user gesture). After that:
-- Engine drone on AY channel A — pitch and volume scale with current speed
-- "Cranking" and "wind-down" jingles when you toggle the engine
-- Quick descending thud when the hull touches a mine
+
+- **Engine drone** — AY channel A. Diesel adds a sub-octave on channel C for the throaty rumble; electric is a clean rising whine.
+- **Sonar ping** — periodic beep when there's a contact in range. Faster pinging the closer the nearest mine gets (300 ms at point-blank, 2.5 s at the edge).
+- **Ballast hiss** — AY noise channel B while you hold `A` or `D`. Higher pitch for blowing air, lower for flooding water.
+- **Engine start / stop jingles** — three-note rising / falling sequences.
+- **Diesel-flood warning** — distinctive warble when DIESEL auto-shuts down on dive.
+- **Mine collision** — descending four-step thud.
+- **Low-resource alarms** — periodic warning beeps when oxygen < 20 % (every 3 s, high pitch) or battery < 20 % while on ELEC (every 5 s, low pitch).
 
 ## Development
 

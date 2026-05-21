@@ -10,6 +10,7 @@ import {
 import {
   type GameState, type Mine,
   MINES, MAX_SPEED, SONAR_RANGE, PERISCOPE_FOV_DEG, PERISCOPE_RANGE,
+  PERISCOPE_DEPTH_RANGE,
   dist, bearingTo, relativeBearing,
 } from './state.ts'
 
@@ -55,12 +56,17 @@ function renderStatusLine(ctx: CanvasRenderingContext2D, state: GameState): void
     drawText(ctx, txt, 0, STATUS_Y, C.B_RED, C.BLACK)
   }
 
-  // Power source label. When the engine is off we make this loud and red so
-  // the player notices the sub isn't going to move no matter how much they
-  // mash the throttle — the cause of confusion is obvious at a glance.
-  const pwr = state.engineOn ? `PWR:${state.power}` : 'ENGINE OFF'
-  const ink = state.engineOn ? C.B_GREEN : C.B_RED
-  drawText(ctx, pwr, (COLS - pwr.length) * CELL, STATUS_Y, ink, C.BLACK)
+  // Engine mode label — bright red when OFF so the player can't miss it,
+  // yellow when DIESEL (surface, charging battery), green when ELEC (cruising).
+  const modeLbl =
+    state.engineMode === 'OFF'    ? 'ENGINE OFF'   :
+    state.engineMode === 'DIESEL' ? 'PWR:DIESEL'   :
+                                    'PWR:ELEC'
+  const modeColour =
+    state.engineMode === 'OFF'    ? C.B_RED    :
+    state.engineMode === 'DIESEL' ? C.B_YELLOW :
+                                    C.B_GREEN
+  drawText(ctx, modeLbl, (COLS - modeLbl.length) * CELL, STATUS_Y, modeColour, C.BLACK)
 }
 
 // ── Periscope view ──────────────────────────────────────────────────────────
@@ -133,15 +139,24 @@ function renderPeriscopeSubmerged(ctx: CanvasRenderingContext2D, state: GameStat
     ctx.fillRect(cx - 1, ty, 3, 1)
   }
 
-  // Project mines onto the forward viewing arc (only visible underwater).
+  // Project mines onto the forward viewing arc.
+  // X axis = relative bearing (where the mine is left/right of the nose).
+  // Y axis = depth offset (mine.depth − sub.depth). On the horizon means
+  //          "matched depth, you can hit it"; above the horizon = mine
+  //          shallower than you (ascend); below = deeper (dive).
+  // Mines outside the depth viewing range are clipped — they exist in the
+  // sonar but aren't optically visible from this depth.
   const fwd = nearbyMines(state, PERISCOPE_RANGE)
                 .filter(c => Math.abs(c.relBearing) <= PERISCOPE_FOV_DEG)
   ctx.fillStyle = C.B_RED
   const halfWidth  = (CANVAS_W - 8) / 2
   const halfHeight = (PERISCOPE_H - 24) / 2
   for (const c of fwd) {
+    const depthDiff = c.mine.depth - state.depth   // + = mine deeper, − = mine shallower
+    if (Math.abs(depthDiff) > PERISCOPE_DEPTH_RANGE) continue   // off-screen vertically
+
     const xOff = (c.relBearing / PERISCOPE_FOV_DEG) * halfWidth
-    const yOff = halfHeight - (c.distance / PERISCOPE_RANGE) * halfHeight
+    const yOff = (depthDiff / PERISCOPE_DEPTH_RANGE) * halfHeight
     const mx = Math.round(cx + xOff)
     const my = Math.round(cy + yOff)
     const size = Math.max(2, Math.round(6 * (1 - c.distance / PERISCOPE_RANGE)))
@@ -269,8 +284,9 @@ function renderMotor(ctx: CanvasRenderingContext2D, state: GameState): void {
   const cy = y + 18
   const radius = 18
 
-  // RPM tracks throttle. Full throttle = 3000 RPM. Maps 1:1 to MAX_SPEED.
-  const rpm = Math.round((state.throttle / MAX_SPEED) * 3000)
+  // RPM tracks ACTUAL speed (not throttle target) so the dial reflects what
+  // the engine is delivering right now — matches the engine drone pitch.
+  const rpm = Math.round((state.speed / MAX_SPEED) * 3000)
 
   drawDial(ctx, {
     cx, cy, radius,
@@ -283,7 +299,22 @@ function renderMotor(ctx: CanvasRenderingContext2D, state: GameState): void {
 
   const val = String(rpm)
   drawText(ctx, val, cx - (val.length * CELL) / 2, y + 40, C.B_RED, C.BLACK)
-  drawText(ctx, 'RPM', cx - (3 * CELL) / 2,        y + 48, C.B_RED, C.BLACK)
+
+  // Rudder strip below the RPM value: a small horizontal bar with a yellow
+  // marker showing the current rudder angle (-35..+35°). Centred = neutral.
+  const rudderY = y + 50
+  const rudderW = 32
+  const rudderX = cx - rudderW / 2
+  // Background track
+  ctx.fillStyle = C.WHITE
+  ctx.fillRect(rudderX, rudderY + 2, rudderW, 1)
+  // Centre tick (neutral position)
+  ctx.fillRect(rudderX + rudderW / 2, rudderY, 1, 5)
+  // Rudder marker
+  const markerFrac = state.rudderAngle / 35   // -1..+1
+  const markerX = Math.round(rudderX + rudderW / 2 + markerFrac * (rudderW / 2 - 1))
+  ctx.fillStyle = C.B_YELLOW
+  ctx.fillRect(markerX - 1, rudderY, 3, 5)
 }
 
 function renderStatusBars(ctx: CanvasRenderingContext2D, state: GameState): void {
