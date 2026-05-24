@@ -17,6 +17,17 @@ import { WORLD_W, WORLD_H } from './config.ts'
 
 // ── Mine layout ───────────────────────────────────────────────────────────────
 
+/**
+ * Visual / behavioural class of a mine. Currently cosmetic only — all mines
+ * share the same collision radius and damage value. Future phases may add
+ * per-class gameplay (magnetic = larger trigger radius, cluster = +damage).
+ *
+ * - `'standard'` (red)    — classic contact mine
+ * - `'magnetic'` (white)  — deep / rare variant
+ * - `'cluster'`  (yellow) — high-yield variant
+ */
+export type MineColor = 'standard' | 'magnetic' | 'cluster'
+
 export interface Mine {
   /** World x */
   readonly x: number
@@ -26,6 +37,8 @@ export interface Mine {
    * to actually touch the mine — sailing across its surface position isn't
    * enough if you're too shallow or too deep. */
   readonly depth: number
+  /** Cosmetic / future-gameplay class — see MineColor. */
+  readonly color: MineColor
   /** Disarming gameplay arrives in Phase 3c. For 3b mines are permanent. */
   disarmed: boolean
 }
@@ -35,18 +48,21 @@ export interface Mine {
  * (20–120 m) so the player has to manage ballast as well as 2D navigation.
  * None inside the start zone — a quick straight dash gets you nowhere
  * dangerous; you have to deliberately seek contacts out.
+ *
+ * Colour mix is hand-tuned for visual variety until Phase 3c replaces this
+ * with a random generator.
  */
 export const MINES: Mine[] = [
-  { x: 220, y: 180, depth:  30, disarmed: false },
-  { x: 720, y: 260, depth:  80, disarmed: false },
-  { x: 820, y: 540, depth:  50, disarmed: false },
-  { x: 680, y: 820, depth: 110, disarmed: false },
-  { x: 320, y: 780, depth:  40, disarmed: false },
-  { x: 160, y: 560, depth:  90, disarmed: false },
-  { x: 480, y: 120, depth:  60, disarmed: false },
-  { x: 540, y: 880, depth: 120, disarmed: false },
-  { x: 900, y: 760, depth:  25, disarmed: false },
-  { x: 100, y: 320, depth: 100, disarmed: false },
+  { x: 220, y: 180, depth:  30, color: 'standard', disarmed: false },
+  { x: 720, y: 260, depth:  80, color: 'magnetic', disarmed: false },
+  { x: 820, y: 540, depth:  50, color: 'standard', disarmed: false },
+  { x: 680, y: 820, depth: 110, color: 'cluster',  disarmed: false },
+  { x: 320, y: 780, depth:  40, color: 'standard', disarmed: false },
+  { x: 160, y: 560, depth:  90, color: 'magnetic', disarmed: false },
+  { x: 480, y: 120, depth:  60, color: 'cluster',  disarmed: false },
+  { x: 540, y: 880, depth: 120, color: 'magnetic', disarmed: false },
+  { x: 900, y: 760, depth:  25, color: 'standard', disarmed: false },
+  { x: 100, y: 320, depth: 100, color: 'cluster',  disarmed: false },
 ]
 
 // ── Submarine state ───────────────────────────────────────────────────────────

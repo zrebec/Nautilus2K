@@ -27,7 +27,7 @@
  * in `lang.ts`, then set this code to test. HMR swaps the text live —
  * useful for checking whether translations fit the fixed 256×192 layout.
  */
-export const LANGUAGE_CODE: string | null = null
+export const LANGUAGE_CODE: 'sk' | null = null
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // WORLD GEOMETRY
@@ -704,11 +704,11 @@ export const DIESEL_FLOOD_PATTERN = [
  * Larger MINE_HIT_STEP_HZ: wider descending sweep. More dramatic.
  * More MINE_HIT_NOTES: longer rumble. Feels more like structural damage.
  */
-export const MINE_HIT_START_HZ  = 150
-export const MINE_HIT_STEP_HZ   = 30
-export const MINE_HIT_NOTES     = 4
+export const MINE_HIT_START_HZ = 150
+export const MINE_HIT_STEP_HZ = 30
+export const MINE_HIT_NOTES = 4
 export const MINE_HIT_SPACING_S = 0.04
-export const MINE_HIT_DUR_MS    = 50
+export const MINE_HIT_DUR_MS = 50
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // VISUAL — DASHBOARD COLOURS
@@ -719,18 +719,7 @@ export const MINE_HIT_DUR_MS    = 50
 // Only 2 colours per 8×8 attribute cell — INK and PAPER.
 // Changing a colour here changes it everywhere it appears in the dashboard.
 
-import { C } from 'zx-kit'
-
-/**
- * Sonar widget — foreground colour for the mine contact blips.
- * Also used for the sub crosshair in the sonar display.
- * Significance: MEDIUM — should contrast sharply with SONAR_PAPER.
- *
- * C.B_RED:  Classic radar red-on-green. High contrast. Aggressive feel.
- * C.B_YELLOW: Softer. Feels more "old equipment".
- * C.B_WHITE: Clean, clinical. Very readable.
- */
-export const SONAR_CONTACT_COLOR = C.B_RED
+import { C, type SpectrumColor } from 'zx-kit'
 
 /**
  * Sonar widget — grid dot and crosshair colour.
@@ -830,9 +819,9 @@ export const DAMAGE_COLOR = C.B_RED
  * ELEC:   C.B_GREEN  — running normally underwater
  */
 export const ENGINE_MODE_COLORS = {
-  OFF:    C.B_RED,
+  OFF: C.B_RED,
   DIESEL: C.B_YELLOW,
-  ELEC:   C.B_GREEN,
+  ELEC: C.B_GREEN,
 } as const
 
 /**
@@ -854,13 +843,23 @@ export const PERISCOPE_FRAME_COLOR = C.CYAN
 export const PERISCOPE_CROSSHAIR_COLOR = C.B_GREEN
 
 /**
- * Periscope mine contact blip colour (underwater view).
- * Significance: HIGH — mines must be immediately visible in the periscope.
+ * Mine colour palette — one entry per MineColor class.
+ * Each mine renders with its own ink colour against the sea / sonar background,
+ * so the player can read "what kind of mine is this" at a glance.
+ * Significance: HIGH — these are the primary mine visual identifiers.
  *
- * C.B_RED:    Maximum danger signal. Hard to miss.
- * C.B_YELLOW: Slightly softer. "Contact" rather than "immediate danger".
+ * Standard (red):   maximum danger signal, immediately readable.
+ * Magnetic (white): high contrast against the blue sea — feels "different".
+ * Cluster (yellow): caution / explosive-yellow association.
+ *
+ * Changing any colour here also changes it in both periscope (16×16 sprite)
+ * and sonar (8×8 mini) views — the mine's identity stays consistent.
  */
-export const PERISCOPE_MINE_COLOR = C.B_RED
+export const MINE_COLORS: Record<'standard' | 'magnetic' | 'cluster', SpectrumColor> = {
+  standard: C.B_RED,
+  magnetic: C.B_WHITE,
+  cluster:  C.B_YELLOW,
+}
 
 /**
  * Periscope sky colour (surface view, upper half).
@@ -911,10 +910,10 @@ export const COMPASS_HIGHLIGHT_COLOR = C.B_YELLOW
  *   MOTOR   → red    (mechanical / power)
  *   STATUS  → yellow (caution / info)
  */
-export const SECT_SONAR_COLOR   = C.B_GREEN
+export const SECT_SONAR_COLOR = C.B_GREEN
 export const SECT_BALLAST_COLOR = C.B_CYAN
-export const SECT_MOTOR_COLOR   = C.B_RED
-export const SECT_STATUS_COLOR  = C.B_YELLOW
+export const SECT_MOTOR_COLOR = C.B_RED
+export const SECT_STATUS_COLOR = C.B_YELLOW
 
 /**
  * Periscope corner HUD label ink colour (OBJ:, CONTACTS:, BRG:, MAG:).
@@ -988,7 +987,7 @@ export const MASTER_VOLUME = 0.5
  * Current stop   [60, 80, 120]: decelerating feel — last note longest (wind-down).
  */
 export const ENGINE_START_DURATIONS_MS = [60, 80, 100] as const
-export const ENGINE_STOP_DURATIONS_MS  = [60, 80, 120] as const
+export const ENGINE_STOP_DURATIONS_MS = [60, 80, 120] as const
 
 /**
  * Gap between notes in the engine start/stop jingle, in seconds.

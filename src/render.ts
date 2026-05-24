@@ -1,7 +1,8 @@
 import {
-  drawText, drawFrame,
+  drawText, drawFrame, drawBitmap,
   drawDottedGrid, drawSegmentedBar, drawDial, drawCompassText,
 } from 'zx-kit'
+import { MINE_BITMAP_16, MINE_BITMAP_8 } from './sprites.ts'
 import {
   C, CELL, COLS, CANVAS_W, CANVAS_H,
   STATUS_Y, PERISCOPE_Y, PERISCOPE_H,
@@ -16,13 +17,13 @@ import {
 import {
   MINE_AHEAD_BEARING_DEG, PERISCOPE_SURFACE_THRESHOLD_M, MAX_RUDDER_ANGLE,
   RPM_DIAL_MAX, BALLAST_BAR_SEGMENTS, RESOURCE_BAR_SEGMENTS,
-  ENGINE_MODE_COLORS,
-  SONAR_CONTACT_COLOR, SONAR_GRID_COLOR, SONAR_PAPER,
+  ENGINE_MODE_COLORS, MINE_COLORS,
+  SONAR_GRID_COLOR, SONAR_PAPER,
   BALLAST_COLOR, BALLAST_PAPER,
   MOTOR_NEEDLE_COLOR, MOTOR_RIM_COLOR,
   RUDDER_NEUTRAL_COLOR, RUDDER_MARKER_COLOR,
   RESOURCE_COLORS, DAMAGE_COLOR,
-  PERISCOPE_FRAME_COLOR, PERISCOPE_CROSSHAIR_COLOR, PERISCOPE_MINE_COLOR,
+  PERISCOPE_FRAME_COLOR, PERISCOPE_CROSSHAIR_COLOR,
   PERISCOPE_SKY_COLOR, PERISCOPE_SEA_COLOR,
   PERISCOPE_LABEL_INK, PERISCOPE_LABEL_PAPER,
   TICKER_SEPARATOR_COLOR, COMPASS_COLOR, COMPASS_HIGHLIGHT_COLOR,
@@ -146,9 +147,12 @@ function renderPeriscopeSubmerged(ctx: CanvasRenderingContext2D, state: GameStat
   //          shallower than you (ascend); below = deeper (dive).
   // Mines outside the depth viewing range are clipped — they exist in the
   // sonar but aren't optically visible from this depth.
+  //
+  // Each mine renders as a 16×16 spike-mine bitmap, ink coloured by class
+  // (standard/magnetic/cluster), paper matching the sea background so the
+  // crosshair "breaks" inside the mine — authentic ZX color clash.
   const fwd = nearbyMines(state, PERISCOPE_RANGE)
                 .filter(c => Math.abs(c.relBearing) <= PERISCOPE_FOV_DEG)
-  ctx.fillStyle = PERISCOPE_MINE_COLOR
   const halfWidth  = (CANVAS_W - 8) / 2
   const halfHeight = (PERISCOPE_H - 24) / 2
   for (const c of fwd) {
@@ -159,8 +163,7 @@ function renderPeriscopeSubmerged(ctx: CanvasRenderingContext2D, state: GameStat
     const yOff = (depthDiff / PERISCOPE_DEPTH_RANGE) * halfHeight
     const mx = Math.round(cx + xOff)
     const my = Math.round(cy + yOff)
-    const size = Math.max(2, Math.round(6 * (1 - c.distance / PERISCOPE_RANGE)))
-    ctx.fillRect(mx - Math.floor(size / 2), my - Math.floor(size / 2), size, size)
+    drawBitmap(ctx, MINE_BITMAP_16, mx - 8, my - 8, MINE_COLORS[c.mine.color], PERISCOPE_SEA_COLOR)
   }
 }
 
@@ -225,7 +228,9 @@ function renderSonar(ctx: CanvasRenderingContext2D, state: GameState): void {
   ctx.fillRect(ccx - 2, ccy, 5, 1)
   ctx.fillRect(ccx, ccy - 2, 1, 5)
 
-  ctx.fillStyle = SONAR_CONTACT_COLOR
+  // Each mine renders as the 8×8 mini-mine bitmap, ink coloured by class —
+  // same silhouette as the periscope 16×16 sprite so the player learns one
+  // shape and recognises it in both views.
   const halfW = w / 2
   const halfH = h / 2
   for (const c of nearbyMines(state, SONAR_RANGE)) {
@@ -233,7 +238,7 @@ function renderSonar(ctx: CanvasRenderingContext2D, state: GameState): void {
     const dy = c.mine.y - state.y
     const sx = ccx + (dx / SONAR_RANGE) * halfW
     const sy = ccy + (dy / SONAR_RANGE) * halfH
-    ctx.fillRect(Math.round(sx) - 1, Math.round(sy) - 1, 2, 2)
+    drawBitmap(ctx, MINE_BITMAP_8, Math.round(sx) - 4, Math.round(sy) - 4, MINE_COLORS[c.mine.color], SONAR_PAPER)
   }
 
   // Range readout
