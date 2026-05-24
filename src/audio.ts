@@ -173,9 +173,39 @@ export function playEngineStop(): void {
     beep(freq, ENGINE_STOP_DURATIONS_MS[i], t + i * ENGINE_JINGLE_NOTE_SPACING_S))
 }
 
-/** Diesel intake floods (auto-shutdown when diving below safe depth). */
+/** Diesel intake floods (legacy — kept for backward compat, no longer auto-fired
+ *  since the dive procedure handles the shutdown deliberately). */
 export function playDieselFlood(): void {
   playPattern([...DIESEL_FLOOD_PATTERN])
+}
+
+/** Crash-dive klaxon — the WWII U-boat "OOGA OOGA" alarm. Two wide-interval
+ *  alternating tones, ~1 second total. Fires on Space-press to kick off the
+ *  multi-phase dive procedure. */
+export function playCrashDiveKlaxon(): void {
+  const ctx = getAudioContext()
+  if (!ctx) return
+  const t = ctx.currentTime
+  // Two-tone alarm: A4 → F4 → A4 → F4, ~250ms each. The major sixth interval
+  // is the classic naval alarm sound.
+  beep(440, 220, t)
+  beep(349, 220, t + 0.25)
+  beep(440, 220, t + 0.50)
+  beep(349, 220, t + 0.75)
+}
+
+/** Surface breach — water-drain SFX when the sail breaks the surface.
+ *  Cascading down-sweep with a final splash thud. */
+export function playSurfaceBreach(): void {
+  const ctx = getAudioContext()
+  if (!ctx) return
+  const t = ctx.currentTime
+  // 6 quick descending beeps to suggest water sheeting off the deck.
+  for (let i = 0; i < 6; i++) {
+    beep(600 - i * 70, 50, t + i * 0.06)
+  }
+  // Final low thud — boat sits.
+  beep(120, 200, t + 0.40)
 }
 
 /** Descending thud when the hull hits a mine. */

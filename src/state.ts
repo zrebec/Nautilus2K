@@ -67,6 +67,46 @@ export const MINES: Mine[] = [
 
 // ── Submarine state ───────────────────────────────────────────────────────────
 
+/**
+ * Top-level operational mode of the submarine. Drives input availability,
+ * audio routing, and the multi-phase dive / surface procedures.
+ *
+ * - `'surface'`    — boat is on the surface. S cycles OFF↔DIESEL. Cannot use
+ *                    ELEC directly — must initiate a dive procedure.
+ * - `'diving'`     — multi-phase dive procedure in progress. Engine controls
+ *                    locked. Auto-sequences diesel shutdown → elec engage →
+ *                    ballast flood. Ends when depth crosses DIESEL_SAFE_DEPTH.
+ * - `'submerged'`  — boat is fully underwater. S cycles OFF↔ELEC. Cannot
+ *                    use DIESEL (intake would flood). Ordered depth (Q/E)
+ *                    available.
+ * - `'surfacing'`  — multi-phase surface procedure in progress. Begins when
+ *                    submerged sub blows ballast and depth reaches the
+ *                    surface. Auto-sequences breach → drain → hatches.
+ */
+export type SubMode = 'surface' | 'diving' | 'submerged' | 'surfacing'
+
+/**
+ * Phase of the active dive procedure. Lives only while `subMode === 'diving'`.
+ *
+ * - `'klaxon'`   — OOGA OOGA alarm sounds, no game-state changes yet.
+ * - `'shutdown'` — diesel winds down (engineMode forced to OFF).
+ * - `'engage'`   — electric motor spins up (engineMode flips to ELEC at end).
+ * - `'flood'`    — ballast valves open, water fills tanks; sub descends from
+ *                  here on under normal physics until depth crosses the
+ *                  submerged threshold.
+ */
+export type DivePhase = 'klaxon' | 'shutdown' | 'engage' | 'flood'
+
+/**
+ * Phase of the active surfacing procedure. Lives only while
+ * `subMode === 'surfacing'`.
+ *
+ * - `'breach'`   — sail breaks the surface, water drains off the deck.
+ * - `'drain'`    — snorkel and intake drain, hatches unlock.
+ * - `'hatches'`  — hatches open, conn ready for surface operations.
+ */
+export type SurfacePhase = 'breach' | 'drain' | 'hatches'
+
 export interface GameState {
   // ── Position & motion ────────────────────────────────────────────────
   /** Submarine x in world units. */
@@ -76,16 +116,28 @@ export interface GameState {
   /** Heading in degrees `0..360`. `0`/`360` = north (up). */
   heading: number
   /** Current rudder deflection in degrees, `-35..+35` (port negative,
-   * starboard positive). Set by the ←/→ keys, self-centres slowly when
-   * released. Turning rate of the sub = `rudderAngle × speed × factor`,
-   * so a zero-speed sub doesn't turn no matter how the rudder is set. */
+   * starboard positive). Set by the ←/→ keys. Stays where put — must be
+   * recentred manually with `X` (no self-centring). Turning rate of the
+   * sub = `rudderAngle × speed × factor`, so a zero-speed sub doesn't turn
+   * no matter how the rudder is set. */
   rudderAngle: number
+  /** When true, the autopilot maintains `headingTarget` regardless of
+   * rudder input. Player toggles with `H`. The autopilot drives `rudderAngle`
+   * directly each frame, applying small corrections. */
+  headingHoldActive: boolean
+  /** Target heading the autopilot is trying to maintain. Set when
+   * `headingHoldActive` flips on. Degrees `0..360`. */
+  headingTarget: number
   /** Current speed in knots. Smoothly interpolates toward `throttle`. */
   speed: number
   /** Player-requested speed in knots (`0..MAX_SPEED`). Throttle the engine. */
   throttle: number
   /** Current depth in metres. Driven by net buoyancy × current speed. */
   depth: number
+  /** Ordered depth in metres the planesmen are trying to reach. Adjusted
+   * with Q/E. When set, ballast is auto-driven toward the target. Holding
+   * A or D overrides and bleeds the auto-trim off in favour of manual. */
+  depthTarget: number
 
   // ── Ballast (controls depth) ─────────────────────────────────────────
   /** Air fraction in the ballast tanks `0..1`. `airPct + waterPct === 1`. */
@@ -101,16 +153,24 @@ export interface GameState {
   /** Hull damage taken `0..1` (1 = destroyed). Goes up when colliding with mines. */
   damagePct: number
 
-  // ── Engine + mission counters ────────────────────────────────────────
-  /** Active propulsion mode:
-   * - `'OFF'`   — no engine, no throttle effect, ballast doesn't change depth
-   *               (no forward motion = no plane control)
-   * - `'DIESEL'`— surface-only combustion engine; CHARGES battery, auto-shuts
-   *               down if you go deeper than `DIESEL_SAFE_DEPTH` (intake floods)
-   * - `'ELEC'`  — battery-driven motor; works at any depth, drains battery
-   *
-   * S key cycles `OFF → DIESEL → ELEC → OFF`. */
+  // ── Engine + sub mode ────────────────────────────────────────────────
+  /** Active propulsion mode. See SubMode for the rules around which modes
+   * are reachable from which sub state. */
   engineMode: 'OFF' | 'DIESEL' | 'ELEC'
+
+  /** Top-level operational mode. Drives input availability and routing of
+   * the multi-phase dive / surface procedures. */
+  subMode: SubMode
+  /** Active phase of the dive procedure. `null` when `subMode !== 'diving'`. */
+  divePhase: DivePhase | null
+  /** Active phase of the surfacing procedure. `null` when
+   *  `subMode !== 'surfacing'`. */
+  surfacePhase: SurfacePhase | null
+  /** Milliseconds elapsed in the current dive or surface phase.
+   *  Compared against config timings to drive phase transitions. */
+  procedureTimer: number
+
+  // ── Mission counters ─────────────────────────────────────────────────
   /** Mines marked / disarmed so far (Phase 3c gameplay). */
   minesFound: number
   /** Remaining lives. */
@@ -128,9 +188,12 @@ export function createInitialState(): GameState {
     y: WORLD_H / 2,
     heading: 0,
     rudderAngle: 0,
+    headingHoldActive: false,
+    headingTarget: 0,
     speed: 0,
     throttle: 0,
     depth: 0,                 // at the surface
+    depthTarget: 0,           // target depth = surface initially
 
     ballastAirPct: 1.0,       // full air = max buoyancy = floats at the surface
     ballastWaterPct: 0.0,
@@ -140,6 +203,11 @@ export function createInitialState(): GameState {
     damagePct: 0.0,
 
     engineMode: 'OFF',        // player presses S to cycle modes
+    subMode: 'surface',       // start on the surface
+    divePhase: null,
+    surfacePhase: null,
+    procedureTimer: 0,
+
     minesFound: 0,
     lives: 3,
 

@@ -14,11 +14,15 @@ Still hardcoded for Phase 3b: power source is always `ELEC`, no disarming mechan
 
 | Key | Action |
 |-----|--------|
-| `S`        | Cycle engine mode (see below) |
-| `←` / `→`  | Swing rudder port / starboard (auto-centres when released) |
+| `S`        | Cycle engine mode (surface: OFF↔DIESEL, submerged: OFF↔ELEC) |
+| `Space`    | **Crash dive** — initiates the multi-phase dive procedure (surface only) |
+| `←` / `→`  | Swing rudder port / starboard — **stays where you leave it** |
+| `X`        | Rudder amidships (snap rudder back to centre) |
+| `H`        | Toggle heading-hold autopilot (locks current heading) |
 | `↑` / `↓`  | Throttle up / down (target speed 0–12 knots) |
-| `A`        | Ascend (blow ballast — pump air in, push water out) |
-| `D`        | Dive (flood ballast — pull water in, vent air out) |
+| `Q` / `E`  | Ordered depth −10 m / +10 m (submerged only — planesmen drive there) |
+| `A`        | Manual blow ballast (override the planesmen, pump air in) |
+| `D`        | Manual flood ballast (override the planesmen, pull water in) |
 
 ## Engine modes
 
@@ -27,16 +31,18 @@ A real diesel-electric submarine carries two propulsion systems. The ZX-Nautilus
 | Mode | Where it works | Battery | What it sounds like |
 |------|----------------|---------|---------------------|
 | **OFF** | Anywhere | No change | Silent |
-| **DIESEL** | Only at depth ≤ 5 m (auto-floods deeper) | **Charges** (the whole reason to surface) | Low, throaty rumble + sub-octave |
-| **ELEC** | Any depth | Drains | High, clean whine |
+| **DIESEL** | Only on the surface | **Charges** (the whole reason to surface) | Low, throaty rumble + sub-octave |
+| **ELEC** | Underwater only — engaged automatically by the dive procedure | Drains | High, clean whine |
 
-`S` cycles `OFF → DIESEL → ELEC → OFF` at the surface. Underwater, `DIESEL` is skipped automatically (it'd auto-shut-off on the next frame anyway). The typical procedure:
+`S` toggles `OFF ↔ DIESEL` on the surface and `OFF ↔ ELEC` underwater. You cannot switch to `ELEC` directly from the surface — to go underwater, hit `Space` for a crash dive. The dive procedure runs through four phases (klaxon → diesel shutdown → electric engage → ballast flood) and locks engine controls until you're fully submerged. Surfacing reverses the procedure automatically once the boat reaches the surface.
 
-1. Press `S` once on the surface → **DIESEL** drives you to a dive location and charges the battery.
-2. Press `S` again → **ELEC** (prepare for dive — diesels can't run underwater).
-3. Throttle up with `↑`, then hold `D` to flood ballast.
-4. Sub descends. Periscope flips to submerged-reticle mode at 5 m.
-5. To return: hold `A` to blow ballast, surface, press `S` to get back to DIESEL.
+The typical patrol:
+
+1. On the surface, press `S` → **DIESEL** drives you to a dive location and charges the battery.
+2. Press `Space` → **crash dive** (klaxon, diesel shuts down, ELEC engages, ballast floods — takes ~10 seconds).
+3. Submerged: use `Q` / `E` to set ordered depth. Planesmen drive the boat there and hold it.
+4. To return: hold `A` to manually blow ballast (or set `Q` repeatedly to 0). Once the sail breaches, the surface procedure runs automatically.
+5. Surfaced again → press `S` to restart DIESEL and recharge.
 
 ## Movement physics
 

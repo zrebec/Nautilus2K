@@ -47,10 +47,41 @@
 // Current longest: 'ENGINE OFF' = 10 chars × 8 px = 80 px. Fits flush.
 
 export const ENGINE_LABELS: Record<'OFF' | 'DIESEL' | 'ELEC', string> = {
-  OFF: 'ENGINE OFF',   // 10 chars — max safe length
-  DIESEL: 'PWR:DIESEL',  // 10 chars — max safe length
-  ELEC: 'PWR:ELEC',    //  8 chars — has breathing room
+  OFF: 'ENGINE OFF',     // 10 chars
+  DIESEL: 'PWR:DIESEL',  // 10 chars
+  ELEC: 'PWR:ELEC',      //  8 chars — has breathing room
 }
+
+// ── Dive procedure phase labels (top-right, replaces engine label) ────────
+// Shown while subMode === 'diving'. Replaces ENGINE_LABELS in the same slot.
+// Budget: ≤ 12 chars to leave breathing room next to MINE AHEAD warning.
+
+export const DIVE_PHASE_LABELS: Record<'klaxon' | 'shutdown' | 'engage' | 'flood', string> = {
+  klaxon:   'DIVE: KLAXON',   // 12 chars
+  shutdown: 'DIVE: SHTDWN',   // 12 chars (abbreviated)
+  engage:   'DIVE: ELEC ON',  // 13 chars (slight overflow OK)
+  flood:    'DIVE: FLOOD',    // 11 chars
+}
+
+// ── Surface procedure phase labels (top-right) ────────────────────────────
+// Shown while subMode === 'surfacing'.
+
+export const SURFACE_PHASE_LABELS: Record<'breach' | 'drain' | 'hatches', string> = {
+  breach:  'SURF: BREACH',    // 12 chars
+  drain:   'SURF: DRAIN',     // 11 chars
+  hatches: 'SURF: HATCHES',   // 13 chars (slight overflow OK)
+}
+
+// ── Target depth readout (status widget, below D: and V:) ─────────────────
+// Shown only while subMode === 'submerged'. Format mirrors STR_DEPTH.
+// 'T:999M' = 6 chars. Fits the STATUS widget budget.
+
+export const STR_TARGET_DEPTH = (m: number) => `T:${m}M`
+
+// ── Heading-hold autopilot indicator (next to heading degrees, bottom) ────
+// Short label that appears when headingHoldActive is true. Otherwise hidden.
+
+export const STR_HEADING_HOLD = 'AUTO'
 
 // ── Status line — mine-ahead warning (left side) ───────────────────────────
 // Budget: leaves room for the engine label on the right.

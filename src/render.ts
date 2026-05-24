@@ -1,6 +1,7 @@
 import {
   drawText, drawFrame, drawBitmap,
   drawDottedGrid, drawSegmentedBar, drawDial, drawCompassText,
+  type SpectrumColor,
 } from 'zx-kit'
 import { MINE_BITMAP_16, MINE_BITMAP_8 } from './sprites.ts'
 import {
@@ -73,9 +74,23 @@ function renderStatusLine(ctx: CanvasRenderingContext2D, state: GameState): void
     drawText(ctx, L.STR_MINE_AHEAD(Math.round(ahead.distance)), 0, STATUS_Y, ENGINE_MODE_COLORS.OFF, C.BLACK)
   }
 
-  const modeLbl    = L.ENGINE_LABELS[state.engineMode]
-  const modeColour = ENGINE_MODE_COLORS[state.engineMode]
-  drawText(ctx, modeLbl, (COLS - modeLbl.length) * CELL, STATUS_Y, modeColour, C.BLACK)
+  // The top-right slot shows one of three things depending on subMode:
+  //   - steady states ('surface' / 'submerged') → engine mode label
+  //   - 'diving'    → current dive phase (red)
+  //   - 'surfacing' → current surface phase (cyan)
+  let label: string
+  let colour: SpectrumColor
+  if (state.subMode === 'diving' && state.divePhase !== null) {
+    label  = L.DIVE_PHASE_LABELS[state.divePhase]
+    colour = ENGINE_MODE_COLORS.OFF
+  } else if (state.subMode === 'surfacing' && state.surfacePhase !== null) {
+    label  = L.SURFACE_PHASE_LABELS[state.surfacePhase]
+    colour = C.B_CYAN
+  } else {
+    label  = L.ENGINE_LABELS[state.engineMode]
+    colour = ENGINE_MODE_COLORS[state.engineMode]
+  }
+  drawText(ctx, label, (COLS - label.length) * CELL, STATUS_Y, colour, C.BLACK)
 }
 
 // ── Periscope view ──────────────────────────────────────────────────────────
@@ -344,6 +359,13 @@ function renderStatusBars(ctx: CanvasRenderingContext2D, state: GameState): void
   // Live depth + speed readouts — driven by physics, not by the player.
   drawText(ctx, L.STR_DEPTH(Math.round(state.depth)), baseX, y + 32, DEPTH_READOUT_COLOR, C.BLACK)
   drawText(ctx, L.STR_SPEED(Math.round(state.speed)), baseX, y + 40, SPEED_READOUT_COLOR, C.BLACK)
+  // Target depth is only meaningful when submerged (Q/E adjustable).
+  // Highlight yellow when current depth is outside the tolerance band.
+  if (state.subMode === 'submerged') {
+    const offTarget = Math.abs(state.depth - state.depthTarget) > 2
+    drawText(ctx, L.STR_TARGET_DEPTH(Math.round(state.depthTarget)), baseX, y + 48,
+      offTarget ? C.B_YELLOW : DEPTH_READOUT_COLOR, C.BLACK)
+  }
 }
 
 // ── Bottom ticker ───────────────────────────────────────────────────────────
@@ -374,7 +396,13 @@ function renderBottomTicker(ctx: CanvasRenderingContext2D, state: GameState): vo
 
   const deg = Math.round(((state.heading % 360) + 360) % 360)
   const hdgStr = String(deg).padStart(3, '0')
-  drawText(ctx, hdgStr, _compassWidthPx(state.heading), BOTTOM_Y, C.B_WHITE, C.BLACK)
+  const hdgX = _compassWidthPx(state.heading)
+  drawText(ctx, hdgStr, hdgX, BOTTOM_Y, C.B_WHITE, C.BLACK)
+  // Heading-hold autopilot indicator — small label after the degrees.
+  if (state.headingHoldActive) {
+    drawText(ctx, L.STR_HEADING_HOLD, hdgX + (hdgStr.length + 1) * CELL, BOTTOM_Y,
+      C.B_GREEN, C.BLACK)
+  }
 
   // Right edge: mine progress + lives. minesFound advances in Phase 3c when
   // disarming arrives; for 3b it stays at 0 — the counter still shows "out of

@@ -32,6 +32,29 @@ export const ENGINE_LABELS: Record<'OFF' | 'DIESEL' | 'ELEC', string> = {
   ELEC:   'POH:ELEK',    //  8 znakov
 }
 
+// ── Fázy dive procedúry ───────────────────────────────────────────────────
+
+export const DIVE_PHASE_LABELS: Record<'klaxon' | 'shutdown' | 'engage' | 'flood', string> = {
+  klaxon:   'PON: ALARM',     // 10 znakov
+  shutdown: 'PON: VYPNUTIE',  // 14 znakov — mierne pretiahnuté
+  engage:   'PON: ELEK ON',   // 12 znakov
+  flood:    'PON: ZAPLAVA',   // 12 znakov
+}
+
+// ── Fázy surfacing procedúry ──────────────────────────────────────────────
+
+export const SURFACE_PHASE_LABELS: Record<'breach' | 'drain' | 'hatches', string> = {
+  breach:  'VYN: VYNORENIE',  // 14 znakov
+  drain:   'VYN: ODTOK',      // 10 znakov
+  hatches: 'VYN: PRIELEZY',   // 13 znakov
+}
+
+// ── Target depth readout ──────────────────────────────────────────────────
+export const STR_TARGET_DEPTH = (m: number) => `C:${m}M`   // C = ciel
+
+// ── Heading-hold indikátor ────────────────────────────────────────────────
+export const STR_HEADING_HOLD = 'AUTO'
+
 // ── Varovanie pred mínou (status line, ľavá strana) ──────────────────────
 // 'MINA VPREDU 220M' = 16 znakov. OK vedľa 10-znakového engine labelu.
 export const STR_MINE_AHEAD = (distM: number) => `MINA VPREDU ${distM}M`

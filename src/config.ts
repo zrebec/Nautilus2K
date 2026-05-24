@@ -115,15 +115,18 @@ export const THROTTLE_RATE_PER_SEC = 4
 export const RUDDER_RATE_DEG_PER_SEC = 25
 
 /**
- * How fast the rudder returns to centre when no key is held, in degrees per second.
- * Significance: MEDIUM — this affects the "drift" after you release the key.
+ * Speed at which the `X` key snaps the rudder back to centre, in degrees per second.
+ * Significance: MEDIUM — controls how snappy the "amidships" command feels.
  *
- * Lower (4):  Rudder stays deflected for a long time after release.
- *             Sub continues turning in an arc — realistic, but hard to control.
- * Higher (20): Rudder snaps back almost instantly. Clean, arcade response.
- * Note: Real subs have auto-centre at ~10°/sec. Current 10 is borderline fast.
+ * Real submarines have NO automatic self-centering — the rudder stays where
+ * the helmsman puts it. The `X` key models a deliberate "rudder amidships"
+ * order: the helmsman turns the wheel back at a controlled rate.
+ *
+ * Lower (10): Slow, deliberate recovery — fights instinct in a panic.
+ * Higher (60): Near-instant snap — arcade-like response.
+ * Current (30): ~1.2 sec from hard rudder to centre. Snappy but visible.
  */
-export const RUDDER_RETURN_DEG_PER_SEC = 10
+export const RUDDER_AMIDSHIPS_RATE_DEG_PER_SEC = 30
 
 /**
  * Maximum rudder deflection in degrees. Real submarines are typically ±30–35°.
@@ -144,6 +147,144 @@ export const MAX_RUDDER_ANGLE = 35
  * Current (0.05): At full speed (12 kn) and full rudder (35°): 21°/sec turn rate → ~17 sec full circle.
  */
 export const TURN_PER_KNOT_PER_DEG = 0.05
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// DIVE / SURFACE PROCEDURES
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Klaxon phase duration — the "OOGA OOGA" alarm at the start of a dive.
+ * Significance: LOW — purely audio drama. No game-state effects.
+ *
+ * Lower (500): Short alarm, dive feels rushed.
+ * Higher (2000): Long warning, dramatic build-up.
+ * Current (1000): One full klaxon cycle.
+ */
+export const DIVE_PHASE_KLAXON_MS = 1000
+
+/**
+ * Diesel shutdown phase duration. Engine winds down, exhaust valves close.
+ * Significance: MEDIUM — sets how long the player is "powerless" mid-dive.
+ *
+ * Lower (1000): Quick shutdown — almost no audible engine wind-down.
+ * Higher (5000): Long, dramatic — but boat coasts a long way before electric kicks in.
+ * Current (2000): Audible RPM drop, satisfying mechanical wind-down.
+ */
+export const DIVE_PHASE_SHUTDOWN_MS = 2000
+
+/**
+ * Electric motor engage phase duration. Motors spin up to taking propulsion load.
+ * Significance: MEDIUM — coast time between diesel-off and elec-on.
+ *
+ * Lower (500): Snappy hand-off, no real "transition" feel.
+ * Higher (4000): Long silent coast — adds tension but feels slow.
+ * Current (1500): Brief spin-up SFX, then ELEC drone takes over.
+ */
+export const DIVE_PHASE_ENGAGE_MS = 1500
+
+/**
+ * Ballast flood phase — water rushes into the tanks. Sub starts descending.
+ * After this phase the procedure is "done" but the sub keeps descending
+ * under physics until depth crosses DIESEL_SAFE_DEPTH (then → submerged).
+ * Significance: MEDIUM — how fast the ballast actually fills during the procedure.
+ *
+ * Lower (2000): Rapid flood — sub plunges down fast (crash-dive feel).
+ * Higher (8000): Slow controlled flood — gentler descent.
+ * Current (5000): Authentic "crash dive" pace.
+ */
+export const DIVE_PHASE_FLOOD_MS = 5000
+
+/**
+ * Surfacing — sail breaches the surface, water sheets off the deck.
+ * Significance: LOW — purely audio/visual drama. Triggered when blown sub reaches depth 0.
+ *
+ * Lower (500): Quick surface, no real ceremony.
+ * Higher (3000): Dramatic breach, ocean draining sound.
+ * Current (1500): Audible water-drain SFX, brief visual moment.
+ */
+export const SURFACE_PHASE_BREACH_MS = 1500
+
+/**
+ * Surfacing — snorkel and intake drain, hatches unlock.
+ * Significance: LOW — between breach and ready-for-diesel.
+ *
+ * Current (1500): Pumps and hatch unlock SFX.
+ */
+export const SURFACE_PHASE_DRAIN_MS = 1500
+
+/**
+ * Surfacing — main hatch opens, conn ready for surface operations.
+ * After this phase → subMode = 'surface' and S becomes usable again.
+ * Significance: LOW.
+ *
+ * Current (1000): Hatch opening SFX, fresh air rush.
+ */
+export const SURFACE_PHASE_HATCHES_MS = 1000
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HEADING HOLD (autopilot)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Maximum rudder correction the autopilot will apply, in degrees.
+ * Significance: MEDIUM — how aggressively the autopilot fights drift.
+ *
+ * Lower (5):  Gentle corrections, autopilot may lose course in heavy turns.
+ * Higher (30): Sharp corrections, snappy hold but oscillates around the target.
+ * Current (10): Subtle but effective hold.
+ */
+export const HEADING_HOLD_MAX_RUDDER_DEG = 10
+
+/**
+ * Proportional gain — how strongly the rudder correction scales with the
+ * heading error (degrees-off-target). `correction = error × gain`, clamped to
+ * `±HEADING_HOLD_MAX_RUDDER_DEG`.
+ * Significance: MEDIUM — controls "responsiveness" of the autopilot.
+ *
+ * Lower (0.2): Lazy autopilot, slow to correct.
+ * Higher (2.0): Twitchy autopilot, overshoots and oscillates.
+ * Current (0.5): Critical-damping-ish — quick correction without overshoot.
+ */
+export const HEADING_HOLD_KP = 0.5
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ORDERED DEPTH (planesmen)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * How much the Q / E keys change the ordered depth target, in metres per press.
+ * Significance: MEDIUM — granularity of depth control.
+ *
+ * Lower (5):  Fine control, more key-presses to reach deep waters.
+ * Higher (20): Coarse jumps, fewer presses but less precision.
+ * Current (10): One press = one Spectrum mine layer (mines spaced ~10m apart).
+ */
+export const DEPTH_TARGET_STEP_M = 10
+
+/**
+ * Maximum ballast adjustment rate the planesmen apply per second while
+ * driving toward `depthTarget`, as fraction of full tank per second.
+ * Mirrors `BALLAST_RATE_PER_SEC` (manual rate) — keep them similar so the
+ * auto-trim feels like a fast human hand on the lever.
+ * Significance: MEDIUM — how snappy the ordered-depth response is.
+ *
+ * Lower (0.04): Lazy planesmen, sub takes ages to reach ordered depth.
+ * Higher (0.20): Aggressive auto-trim — sub races toward target.
+ * Current (0.10): Slightly faster than manual — feels like a competent crew.
+ */
+export const ORDERED_DEPTH_BALLAST_RATE_PER_SEC = 0.10
+
+/**
+ * Depth tolerance, in metres, within which the auto-trim returns ballast to neutral.
+ * Once the sub is within ±this many metres of the ordered depth, the planesmen
+ * settle the ballast at 50/50 (neutral buoyancy) instead of continuing to flood/blow.
+ * Significance: LOW — controls the oscillation band around target depth.
+ *
+ * Lower (1): Very precise, but causes rapid ballast oscillation.
+ * Higher (5): Loose — sub may oscillate ±5 m around target.
+ * Current (2): Acceptable real-sub oscillation band.
+ */
+export const ORDERED_DEPTH_TOLERANCE_M = 2
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // BALLAST & DEPTH
