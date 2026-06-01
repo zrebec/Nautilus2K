@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "zx-kit": "^0.21.0"
+    "zx-kit": "^0.26.0"
   },
   "devDependencies": {
     "typescript": "~6.0.2",
