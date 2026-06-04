@@ -2,7 +2,7 @@
 
 A ZX Spectrum-style submarine simulator. You command the *ZX-Nautilus*, a deep-sea mine-clearing submarine sent to recover the lost Gaia Stone from a flooded minefield.
 
-Built on [zx-kit](https://github.com/zrebec/zx-kit) — the same authentic 256×192 Spectrum palette, 8×8 attribute cells, and pixel-perfect rendering used in [Minefield](https://github.com/zrebec/minefield).
+Built on [zx-kit](https://github.com/zrebec/zx-kit) (`zx-kit@^0.28.0`) — the same authentic 256×192 Spectrum palette, 8×8 attribute cells, and pixel-perfect rendering used in [Minefield](https://github.com/zrebec/minefield).
 
 ## Status
 
