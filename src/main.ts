@@ -1,5 +1,5 @@
 import { setupCanvas, curveDisplay, initInput, isHeld } from 'zx-kit'
-import { CANVAS_W, CANVAS_H, pickFittingScale } from './constants.ts'
+import { CANVAS_W, CANVAS_H } from './constants.ts'
 import {
   createInitialState, MINES, SONAR_RANGE, dist,
 } from './state.ts'
@@ -12,13 +12,15 @@ import {
 } from './audio.ts'
 
 const canvas = document.getElementById('game') as HTMLCanvasElement
-const ctx = setupCanvas(canvas, pickFittingScale(), CANVAS_W, CANVAS_H)
+const ctx = setupCanvas(canvas, 4, CANVAS_W, CANVAS_H)
+canvas.style.width = ''
+canvas.style.height = ''
 curveDisplay(canvas, 0.7)
 
 initInput()
 
 window.addEventListener('keydown', initSubAudio, { once: true })
-window.addEventListener('click',   initSubAudio, { once: true })
+window.addEventListener('click', initSubAudio, { once: true })
 
 const state = createInitialState()
 
