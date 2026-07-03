@@ -70,7 +70,7 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5 # v3 artifacts rejected by Pages backend since 2026-07-03
         with:
           path: ./dist
 
@@ -82,4 +82,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5 # Node 24 native, pairs with upload v5
