@@ -3,8 +3,25 @@
 # bumps the version range and the lockfile; you just review and merge.
 # Targets this repo's default branch automatically.
 #
-# To watch every dependency (not only zx-kit), remove the `allow` block.
-# To check less often, change `interval` to "weekly".
+# ERRATA (2026-08-08, diagnosed in minefield and applied here PREVENTIVELY). This
+# file used to carry an `allow: [zx-kit]` block. That block filters SECURITY
+# updates as well as version updates: a security job starts for its package, finds
+# it excluded by the filter, and dies with `all_versions_ignored`. In minefield the
+# job definition showed it plainly — a "command":"security" job carrying
+# "allowed-updates":[{"dependency-name":"zx-kit"}] — and minefield, chaosbunny and
+# icehaul were all failing security runs daily because of it.
+#
+# This repo had NOT failed yet (no advisory had landed on its dependencies), so
+# this is the same fix applied before it bites rather than after.
+#
+# `applies-to` cannot split version- and security-update rules at the `updates`
+# level (it only exists inside `groups`), so the fix is to drop `allow` entirely
+# and use GROUPS to keep the queue quiet instead — which is what `allow` was
+# really for. Expect one catch-up PR of dev-tool bumps that the filter had frozen.
+#
+# NOTE: security updates ignore both `schedule` and `open-pull-requests-limit` —
+# they fire off the alert, not the timer — so the security GROUP is what keeps
+# them to a single PR.
 version: 2
 updates:
   - package-ecosystem: "npm"
@@ -12,8 +29,22 @@ updates:
     schedule:
       interval: "daily"
     versioning-strategy: increase
-    allow:
-      - dependency-name: "zx-kit"
+    open-pull-requests-limit: 2   # version updates only; security PRs are exempt by design
+    groups:
+      # zx-kit is the ONLY runtime dependency and the one bump worth reviewing on
+      # its own — it ships to players, so it never waits behind dev-tool bumps.
+      zx-kit:
+        patterns: ["zx-kit"]
+      # Everything else is build/test tooling that never reaches a player, so it
+      # arrives as ONE batched PR that Dependabot updates in place on later runs.
+      dev-tooling:
+        patterns: ["*"]
+        exclude-patterns: ["zx-kit"]
+      npm-security:
+        applies-to: security-updates
+        patterns: ["*"]
     commit-message:
+      # Deliberately `chore`, not `fix`: a dev-only dependency bump should not cut
+      # a release of the game by itself.
       prefix: "chore"
       include: "scope"
